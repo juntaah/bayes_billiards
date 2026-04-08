@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bayesian Inference | Continuous Mode</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f8fafc; --card: #ffffff; --primary: #0284c7; --primary-light: #e0f2fe;
+            --accent: #ef4444; --text-main: #1e293b; --text-sub: #64748b; --border: #e2e8f0;
+            --success: #16a34a; --kofi: #29abe0;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-main);
+            display: flex; justify-content: center; padding: 40px 20px; margin: 0;
+        }
+
+        .dashboard { width: 100%; max-width: 1000px; display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
+
+        .header { grid-column: span 2; margin-bottom: 10px; border-bottom: 2px solid var(--primary); padding-bottom: 15px; }
+        .header h1 { margin: 0; font-size: 2rem; font-weight: 800; color: var(--primary); }
+        .header p { margin: 8px 0 0 0; color: var(--text-sub); line-height: 1.5; }
+
+        .scoreboard { grid-column: span 2; display: flex; gap: 20px; margin-bottom: 10px; }
+        .score-card {
+            background: var(--card); flex: 1; padding: 20px; border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid var(--border);
+            text-align: center;
+        }
+        .score-val { font-size: 2.2rem; font-weight: 800; display: block; }
+        .score-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-sub); margin-top: 4px; display: block;}
+
+        .main-content { display: flex; flex-direction: column; gap: 20px; position: relative; }
+        .card { 
+            background: var(--card); padding: 24px; border-radius: 12px; 
+            border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .card-header h3 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+        
+        .spatial-container { overflow: hidden; transition: max-height 0.3s ease-out, margin-bottom 0.3s; max-height: 0; }
+        .spatial-container.visible { max-height: 120px; margin-bottom: 25px; }
+        canvas#table { background: #fff; border: 1px solid var(--border); border-radius: 8px; width: 100%; cursor: crosshair; }
+
+        canvas#graph { width: 100%; height: 220px; cursor: crosshair; }
+
+        .tooltip {
+            position: absolute; pointer-events: none; background: rgba(30, 41, 59, 0.95);
+            color: white; padding: 6px 10px; border-radius: 6px; font-size: 0.75rem;
+            display: none; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            white-space: nowrap;
+        }
+
+        #data-log { 
+            height: 480px; overflow-y: auto; background: #f1f5f9; 
+            border-radius: 8px; padding: 15px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+            display: flex; flex-direction: column;
+        }
+        .log-entry { padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
+        .log-entry.latest { color: var(--primary); font-weight: bold; }
+
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+        button {
+            padding: 12px; border-radius: 8px; border: 1px solid var(--border);
+            font-weight: 600; cursor: pointer; transition: 0.2s; background: white;
+        }
+        button:hover { background: #f8fafc; transform: translateY(-1px); }
+        .btn-primary { background: var(--primary); color: white; border: none; }
+        .btn-reveal { color: var(--accent); border-color: #fecaca; }
+
+        .explanation-box {
+            margin-top: 20px; padding: 15px; background: #f8fafc; border: 1px solid var(--border);
+            border-radius: 8px; font-size: 0.85rem; line-height: 1.5; color: var(--text-sub);
+        }
+        .explanation-box b { color: var(--text-main); }
+
+        .kofi-button {
+            display: inline-flex; align-items: center; justify-content: center;
+            background-color: var(--kofi); color: white; text-decoration: none;
+            padding: 10px 16px; border-radius: 8px; font-weight: 700; font-size: 0.9rem;
+            margin-top: 15px; transition: 0.2s;
+        }
+        .kofi-button:hover { background-color: #1da1d1; }
+        .kofi-button img { width: 22px; margin-right: 8px; }
+
+        /* Navigation Tab Bar */
+        .nav-tabs {
+            grid-column: span 2;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: #e2e8f0;
+            padding: 5px;
+            border-radius: 10px;
+        }
+
+        .nav-tabs a {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.9rem;
+            border-radius: 8px;
+            transition: 0.2s;
+            color: var(--text-sub);
+        }
+
+        .nav-tabs a.active {
+            background: var(--card);
+            color: var(--primary);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .nav-tabs a:hover:not(.active) {
+            background: #f1f5f9;
+            color: var(--text-main);
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="nav-tabs">
+        <a href="index.html" class="active">🎲 Bayes simulator</a>
+        <a href="bayes_game.html">🏆 Bet with Bayes!</a>
+    </div>
+    <div class="header">
+        <h1>Bayesian billiards table simulator</h1>
+        <p>Replicating Thomas Bayes' thought experiment: use binary observations of where randomly tossed balls land in relation to a secret red ball to infer its hidden position. As the trial count (N) increases, watch the posterior distribution converge.</p>
+    </div>
+
+    <div class="scoreboard">
+        <div class="score-card" style="border-top: 4px solid #3b82f6;">
+            <span class="score-label">Landed left of the red ball</span>
+            <span class="score-val" id="count-l" style="color: #3b82f6;">0</span>
+        </div>
+        <div class="score-card" style="border-top: 4px solid #f97316;">
+            <span class="score-label">Landed right of the red ball</span>
+            <span class="score-val" id="count-r" style="color: #f97316;">0</span>
+        </div>
+        <div class="score-card" style="border-top: 4px solid #8b5cf6;">
+            <span class="score-label">Precision (CI Width)</span>
+            <span class="score-val" id="ci-width" style="color: #8b5cf6;">0.950</span>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div id="tooltip" class="tooltip"></div>
+        
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h3>Where's the Red Ball?</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-sub); margin: 4px 0 0 0;">This is the <b>Posterior Distribution</b> of where the red ball could be after each exploratory ball toss. The shaded region represents where we are currently 95% certain the ball lies.</p>
+                </div>
+                <button onclick="toggleSpatial()" id="spatial-btn" style="font-size: 0.75rem; padding: 6px 12px;">Show Spatial View</button>
+            </div>
+            
+            <div id="spatial-wrap" class="spatial-container">
+                <canvas id="table" width="600" height="80"></canvas>
+            </div>
+
+            <canvas id="graph" width="600" height="220"></canvas>
+
+            <div class="explanation-box">
+                <b>The Blue Curve</b> represents your current state of knowledge. The peak is the most likely location. <b>The Shaded Region</b> is the 95% Credible Interval. If the secret ball is revealed, it will appear as a <b>Red Circle</b> on both the table and the graph axis.
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn-primary" onclick="throwBall()">Throw Data Ball</button>
+            <button onclick="throwBatch(10)">Throw 10x Batch</button>
+            <button class="btn-reveal" id="reveal-btn" onclick="reveal()">Reveal Secret Ball</button>
+            <button onclick="resetGame()">Reset Simulation</button>
+        </div>
+    </div>
+
+    <div class="card" style="display:flex; flex-direction:column;">
+        <h3 style="margin-top:0; font-size: 0.9rem;">Observation Log</h3>
+        <div id="data-log"></div>
+        <a href="https://ko-fi.com/YOUR_ACCOUNT" target="_blank" class="kofi-button">
+            <img src="https://storage.ko-fi.com/cdn/cup-border.png" alt="Ko-fi">
+            Support the Project
+        </a>
+    </div>
+</div>
+
+<script>
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playTossSound() {
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.type = 'sine';
+        // Start high, drop fast to give it a "pointy" start
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+        
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.1, now + 0.01); // Quick fade-in to prevent popping
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15); // Smooth tail
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.start();
+        osc.stop(now + 0.2);
+    };
+
+    const table = document.getElementById('table');
+    const tCtx = table.getContext('2d');
+    const graph = document.getElementById('graph');
+    const gCtx = graph.getContext('2d');
+    const logContainer = document.getElementById('data-log');
+    const tooltip = document.getElementById('tooltip');
+    const revealBtn = document.getElementById('reveal-btn');
+
+    let secretX, balls, revealed, lefts, rights;
+
+    function updateTooltip(e, canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const p = mouseX / rect.width;
+        if (p >= 0 && p <= 1) {
+            tooltip.style.display = 'block';
+            tooltip.style.left = (e.pageX + 15) + 'px';
+            tooltip.style.top = (e.pageY + 15) + 'px';
+            tooltip.innerText = `Position (θ): ${p.toFixed(3)}`;
+        }
+    }
+
+    [table, graph].forEach(canvas => {
+        canvas.addEventListener('mousemove', (e) => updateTooltip(e, canvas));
+        canvas.addEventListener('mouseleave', () => tooltip.style.display = 'none');
+    });
+
+    function toggleSpatial() {
+        const wrap = document.getElementById('spatial-wrap');
+        const btn = document.getElementById('spatial-btn');
+        const isOpen = wrap.classList.toggle('visible');
+        btn.innerText = isOpen ? "Hide Spatial View" : "Show Spatial View";
+    }
+
+    function resetGame() {
+        secretX = Math.random() * table.width;
+        balls = []; revealed = false; lefts = 0; rights = 0;
+        revealBtn.innerText = "Reveal Secret Ball";
+        logContainer.innerHTML = ''; updateUI(); draw();
+    }
+
+    function throwBall() {
+        playTossSound();
+        let x = Math.random() * table.width;
+        if (x < secretX) { lefts++; balls.push({x, color: '#3b82f6'}); }
+        else { rights++; balls.push({x, color: '#f97316'}); }
+        updateUI(); updateLog(); draw();
+    }
+
+    function throwBatch(n) { for(let i=0; i<n; i++) throwBall(); }
+
+    function updateUI() {
+        document.getElementById('count-l').innerText = lefts;
+        document.getElementById('count-r').innerText = rights;
+    }
+
+    function updateLog() {
+        const ci = calculateCI();
+        document.getElementById('ci-width').innerText = (ci.high - ci.low).toFixed(3);
+        const entry = document.createElement('div');
+        entry.className = 'log-entry latest';
+        document.querySelectorAll('.log-entry').forEach(el => el.classList.remove('latest'));
+        entry.innerHTML = `N=${lefts+rights} | MLE: ${(lefts/(lefts+rights || 1)).toFixed(3)}<br>CI: [${ci.low.toFixed(3)} - ${ci.high.toFixed(3)}]`;
+        logContainer.prepend(entry);
+    }
+
+    function calculateCI() {
+        let pts = [], total = 0;
+        for(let i=0; i<=500; i++) {
+            let v = Math.pow(i/500, lefts) * Math.pow(1 - i/500, rights);
+            pts.push(v); total += v;
+        }
+        let low = 0, high = 1, curr = 0;
+        for(let i=0; i<pts.length; i++) {
+            curr += pts[i];
+            if(!low && curr >= total * 0.025) low = i / 500;
+            if(curr >= total * 0.975) { high = i / 500; break; }
+        }
+        return { low, high };
+    }
+
+    function reveal() {
+        revealed = !revealed;
+        revealBtn.innerText = revealed ? "Hide Secret Ball" : "Reveal Secret Ball";
+        draw();
+    }
+
+    function draw() {
+        tCtx.clearRect(0,0,table.width, table.height);
+        gCtx.clearRect(0,0,graph.width, graph.height);
+
+        // --- Table Rendering ---
+        tCtx.strokeStyle = "#e2e8f0"; tCtx.lineWidth = 2;
+        tCtx.beginPath(); tCtx.moveTo(0, 40); tCtx.lineTo(600, 40); tCtx.stroke();
+        balls.forEach(b => {
+            tCtx.beginPath(); tCtx.arc(b.x, 40, 4, 0, 7);
+            tCtx.fillStyle = b.color; tCtx.fill();
+            tCtx.strokeStyle = "white"; tCtx.stroke();
+        });
+        if(revealed) {
+            tCtx.beginPath(); tCtx.arc(secretX, 40, 8, 0, 7);
+            tCtx.fillStyle = '#ef4444'; tCtx.fill(); tCtx.strokeStyle = "white"; tCtx.lineWidth = 2; tCtx.stroke();
+        }
+
+        // --- Graph Rendering ---
+        let maxV = 0, pts = [];
+        for(let x=0; x<=graph.width; x++) {
+            let p = x / graph.width;
+            let v = Math.pow(p, lefts) * Math.pow(1-p, rights);
+            pts.push(v); if(v > maxV) maxV = v;
+        }
+        const ci = calculateCI();
+        gCtx.fillStyle = 'rgba(2, 132, 199, 0.1)';
+        gCtx.fillRect(ci.low * graph.width, 0, (ci.high - ci.low) * graph.width, graph.height);
+
+        gCtx.beginPath();
+        pts.forEach((v, x) => gCtx.lineTo(x, graph.height - (v / (maxV || 1) * 160) - 30));
+        gCtx.strokeStyle = '#0284c7'; gCtx.lineWidth = 3; gCtx.stroke();
+
+        // Reveal Secret on Graph Axis
+        if(revealed) {
+            const secretPx = (secretX / table.width) * graph.width;
+            gCtx.beginPath(); gCtx.arc(secretPx, graph.height - 30, 6, 0, 7);
+            gCtx.fillStyle = '#ef4444'; gCtx.fill();
+            gCtx.strokeStyle = "white"; gCtx.lineWidth = 2; gCtx.stroke();
+        }
+        
+        gCtx.fillStyle = "#94a3b8"; gCtx.font = "11px monospace";
+        gCtx.fillText("0.0", 5, graph.height - 10);
+        gCtx.fillText("1.0", graph.width - 25, graph.height - 10);
+    }
+
+    resetGame();
+</script>
+</body>
+</html>
