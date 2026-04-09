@@ -47,21 +47,6 @@
         canvas#table { background: #fff; border: 1px solid var(--border); border-radius: 8px; width: 100%; cursor: crosshair; }
 
         canvas#graph { width: 100%; height: 220px; cursor: crosshair; }
-
-        .tooltip {
-            position: absolute; 
-            pointer-events: none; 
-            background: rgba(30, 41, 59, 0.95);
-            color: white; 
-            padding: 6px 10px; 
-            border-radius: 6px; 
-            font-size: 0.75rem;
-            display: none; 
-            z-index: 9999; /* Ensure it stays on top */
-            white-space: nowrap;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            transform: translate(15px, 15px); /* Offset from cursor */
-        }
         
         #data-log { 
             height: 480px; overflow-y: auto; background: #f1f5f9; 
@@ -159,7 +144,6 @@
     </div>
 
     <div class="main-content">
-        <div id="tooltip" class="tooltip"></div>
         
         <div class="card">
             <div class="card-header">
@@ -228,48 +212,9 @@
     const graph = document.getElementById('graph');
     const gCtx = graph.getContext('2d');
     const logContainer = document.getElementById('data-log');
-    const tooltip = document.getElementById('tooltip');
     const revealBtn = document.getElementById('reveal-btn');
 
     let secretX, balls, revealed, lefts, rights;
-
-    function updateTooltip(e, canvas) {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const p = mouseX / rect.width;
-        if (p >= 0 && p <= 1) {
-            tooltip.style.display = 'block';
-            tooltip.style.left = (e.pageX + 15) + 'px';
-            tooltip.style.top = (e.pageY + 15) + 'px';
-            tooltip.innerText = `Position (θ): ${p.toFixed(3)}`;
-        }
-    }
-
-    function handleMouseMove(e, canvas) {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const p = mouseX / rect.width;
-        
-        // Boundary check: only show if mouse is actually inside the canvas width
-        if (p >= 0 && p <= 1) {
-            tooltip.style.display = 'block';
-            
-            // Use pageX/Y to account for scrolling and page layout
-            tooltip.style.left = e.pageX + 'px';
-            tooltip.style.top = e.pageY + 'px';
-            
-            tooltip.innerText = `Position (θ): ${p.toFixed(3)}`;
-        } else {
-            tooltip.style.display = 'none';
-        }
-    }
-
-    [table, graph].forEach(canvas => {
-        canvas.addEventListener('mousemove', (e) => handleMouseMove(e, canvas));
-        canvas.addEventListener('mouseleave', () => {
-            tooltip.style.display = 'none';
-        });
-    });
 
     function toggleSpatial() {
         const wrap = document.getElementById('spatial-wrap');
